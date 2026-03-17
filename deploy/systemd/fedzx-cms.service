@@ -1,0 +1,23 @@
+[Unit]
+Description=fedzx CMS (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/fedzx/apps/cms
+Environment=NODE_ENV=production
+Environment=PORT=3100
+
+# Set these in an EnvironmentFile on the server:
+# - DATABASE_URL=file:./prod.db
+# - SESSION_SECRET=...
+# - BOOTSTRAP_TOKEN=... (optional after first admin is created)
+EnvironmentFile=/opt/fedzx/apps/cms/.env.production
+
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+

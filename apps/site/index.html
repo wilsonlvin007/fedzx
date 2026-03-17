@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>联储资讯 - 专业的美联储政策分析与投资指导平台</title>
+
+    <!-- Configure this for production (e.g. https://cms.fedzx.com). If omitted, uses current origin. -->
+    <meta name="fedzx-cms-base" content="http://localhost:3000" />
+    <!-- Used only for local preview when CMS-provided HTML contains relative assets like images/*.jpg -->
+    <meta name="fedzx-asset-base" content="https://fedzx.com" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://domainapi.aliyun.com/onsale/builderProjectJs.json"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap");
+      body {
+        font-family: "Noto Sans SC", sans-serif;
+      }
+      .navbar-sticky {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background-color: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+      }
+      .hero-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+      }
+      .section-divider {
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
+      }
+      .floating-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .floating-card:hover {
+        transform: translateY(-5px);
+        box-shadow:
+          0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      }
+      .gradient-text {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+    </style>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="bg-gray-50">
+    <!-- 导航栏 -->
+    <nav class="navbar-sticky border-b border-gray-200 px-4 py-3">
+      <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <div class="text-2xl font-bold text-blue-600">联储资讯</div>
+        </div>
+        <div class="hidden md:flex space-x-8">
+          <a href="#home" class="text-gray-700 hover:text-blue-600 transition-colors duration-200">首页</a>
+          <a href="#services" class="text-gray-700 hover:text-blue-600 transition-colors duration-200">核心功能</a>
+          <a href="#analysis" class="text-gray-700 hover:text-blue-600 transition-colors duration-200">政策分析</a>
+          <a href="#assets" class="text-gray-700 hover:text-blue-600 transition-colors duration-200">资产配置</a>
+        </div>
+        <button id="mobile-menu-button" class="md:hidden text-gray-700">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+      </div>
+      <!-- 移动端菜单 -->
+      <div id="mobile-menu" class="md:hidden hidden py-4 border-t border-gray-200">
+        <div class="flex flex-col space-y-3 pt-2">
+          <a href="#home" class="text-gray-700 hover:text-blue-600 transition-colors duration-200 px-2 py-1">首页</a>
+          <a href="#services" class="text-gray-700 hover:text-blue-600 transition-colors duration-200 px-2 py-1">核心业务</a>
+          <a href="#analysis" class="text-gray-700 hover:text-blue-600 transition-colors duration-200 px-2 py-1">政策分析</a>
+          <a href="#assets" class="text-gray-700 hover:text-blue-600 transition-colors duration-200 px-2 py-1">资产配置</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- 首页英雄区域 (will be replaced by CMS module type=hero) -->
+    <section id="home" class="relative bg-gradient-to-br from-blue-50 to-indigo-100 py-20 overflow-hidden">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div class="space-y-8">
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+              <span class="gradient-text">美联储政策分析</span>
+            </h1>
+            <p class="text-xl text-gray-700 leading-relaxed">把“联储的每一次表态”，变成你可执行的投资策略。</p>
+          </div>
+          <div class="flex justify-center">
+            <img
+              src="images/hero-federal-reserve.jpg"
+              alt="美联储大楼外观，现代建筑风格，玻璃幕墙反射阳光，周围有绿色植物和现代化城市景观，专业金融分析背景"
+              width="500"
+              height="400"
+              class="rounded-xl shadow-2xl w-full max-w-md"
+            />
+          </div>
+        </div>
+      </div>
+      <canvas id="hero-canvas" class="hero-canvas"></canvas>
+    </section>
+
+    <!-- 核心业务 (will be replaced by CMS module type=services) -->
+    <section id="services" class="py-20 bg-gray-50">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">核心功能</h2>
+          <p class="text-xl text-gray-600 max-w-3xl mx-auto">全方位的美联储政策分析与投资资讯</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 政策分析 (will be replaced by CMS module type=analysis) -->
+    <section id="analysis" class="py-20 bg-white">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">政策分析</h2>
+          <p class="text-xl text-gray-600 max-w-3xl mx-auto">当前示例内容将由 CMS 输出替换</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 资产配置 (will be replaced by CMS module type=assets) -->
+    <section id="assets" class="py-20 bg-gray-50">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">资产配置建议</h2>
+          <p class="text-xl text-gray-600 max-w-3xl mx-auto">当前示例内容将由 CMS 输出替换</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="bg-gray-900 text-white py-12">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="border-t border-gray-800 pt-8 text-center">
+          <p class="text-gray-400">
+            © 2026 联储资讯 版权所有 |
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
+              class="text-blue-400 hover:text-blue-300 transition-colors duration-200"
+              rel="noreferrer"
+            >
+              京ICP备17065765号&nbsp;
+            </a>
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- CMS first, then site UI -->
+    <script src="js/cms-loader.js" defer></script>
+    <script src="js/script.js" defer></script>
+  </body>
+</html>

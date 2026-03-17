@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  ADMIN
+}
+
+enum ContentStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum RecommendationType {
+  ARTICLE
+  EXTERNAL
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String?
+  role         UserRole  @default(ADMIN)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  articlesCreated Article[] @relation("ArticleCreatedBy")
+  articlesUpdated Article[] @relation("ArticleUpdatedBy")
+  auditLogs       AuditLog[]
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  summary     String?
+  body        String
+  coverImage  String?
+  tags        String        @default("[]")
+  status      ContentStatus @default(DRAFT)
+  publishedAt DateTime?
+
+  sourceUrl   String?
+  sourceMeta  String?
+  aiMeta      String?
+
+  createdById String
+  updatedById String
+  createdBy   User          @relation("ArticleCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User          @relation("ArticleUpdatedBy", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Page {
+  id        String      @id @default(cuid())
+  key       String      @unique
+  title     String?
+  status    ContentStatus @default(DRAFT)
+  modules   PageModule[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model PageModule {
+  id        String        @id @default(cuid())
+  pageId    String
+  page      Page          @relation(fields: [pageId], references: [id])
+  type      String
+  config    String
+  order     Int           @default(0)
+  status    ContentStatus @default(DRAFT)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([pageId, order])
+}
+
+model Recommendation {
+  id        String              @id @default(cuid())
+  type      RecommendationType
+  title     String
+  slot      String
+  order     Int                 @default(0)
+  status    ContentStatus       @default(DRAFT)
+
+  articleId String?
+  url       String?
+
+  startAt   DateTime?
+  endAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slot, order])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  diff       String?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+}
