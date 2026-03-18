@@ -46,8 +46,14 @@ model Article {
   id          String        @id @default(cuid())
   slug        String        @unique
   title       String
+  /// GEO: user-searchable question (optional for backward compatibility).
+  question    String?
+  /// GEO: concise conclusion that can be directly cited by AI (optional).
+  shortAnswer String?       @map("short_answer")
   summary     String?
   body        String
+  /// Sources for data/opinions (newline separated; optional).
+  sources     String?
   coverImage  String?
   tags        String        @default("[]")
   status      ContentStatus @default(DRAFT)

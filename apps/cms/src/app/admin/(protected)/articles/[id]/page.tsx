@@ -28,10 +28,14 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
     const user = await requireAdminUser();
     const title = String(formData.get("title") ?? "").trim();
     const slug = String(formData.get("slug") ?? "").trim();
+    const question = String(formData.get("question") ?? "").trim();
+    const shortAnswer = String(formData.get("short_answer") ?? "").trim();
     const summary = String(formData.get("summary") ?? "").trim();
     const body = String(formData.get("body") ?? "").trim();
+    const sources = String(formData.get("sources") ?? "").trim();
     const coverImage = String(formData.get("coverImage") ?? "").trim();
-    const tagsCsv = String(formData.get("tags") ?? "").trim();
+    const tagsSelected = formData.getAll("tags").map((t) => String(t).trim()).filter(Boolean);
+    const tagsCustomCsv = String(formData.get("tags_custom") ?? "").trim();
     const statusRaw = String(formData.get("status") ?? "DRAFT").trim();
     const status = isContentStatus(statusRaw) ? statusRaw : "DRAFT";
 
@@ -42,10 +46,13 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
       data: {
         title,
         slug,
+        question: question || null,
+        shortAnswer: shortAnswer || null,
         summary: summary || null,
         body,
+        sources: sources || null,
         coverImage: coverImage || null,
-        tags: JSON.stringify(parseTags(tagsCsv)),
+        tags: JSON.stringify(mergeTags(tagsSelected, tagsCustomCsv)),
         status: status as ContentStatus,
         updatedById: user.id,
       },
@@ -125,10 +132,25 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
         <Field label="标题" name="title" required defaultValue={article.title} />
         <Field label="Slug（用于 URL）" name="slug" required defaultValue={article.slug} />
         <Field label="封面图 URL（可选）" name="coverImage" defaultValue={article.coverImage ?? ""} />
-        <Field label="标签（逗号分隔）" name="tags" defaultValue={safeTagsToCsv(article.tags)} />
+        <Field
+          label="Question（可选）"
+          name="question"
+          defaultValue={article.question ?? ""}
+          hint="写成用户会搜索的问题。示例：高利率下科技股如何配置？"
+        />
+        <Textarea
+          label="Short Answer（可选）"
+          name="short_answer"
+          rows={3}
+          defaultValue={article.shortAnswer ?? ""}
+          hint="1~2 句话核心结论，要可以被直接引用。"
+        />
+        <Textarea label="Summary（可选）" name="summary" rows={3} defaultValue={article.summary ?? ""} hint="用于首页展示的人类可读摘要。" />
+        <Textarea label="Body（正文 Markdown）" name="body" rows={14} required defaultValue={article.body} />
+        <Textarea label="Sources（可选）" name="sources" rows={4} defaultValue={article.sources ?? ""} hint="数据或观点来源（换行分隔）。" />
+
+        <TagSelector defaultSelected={safeTagsToArray(article.tags)} />
         <SelectStatus defaultValue={article.status} />
-        <Textarea label="摘要" name="summary" rows={3} defaultValue={article.summary ?? ""} />
-        <Textarea label="正文（Markdown）" name="body" rows={14} required defaultValue={article.body} />
 
         <div className="flex items-center justify-end">
           <button className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800" type="submit">
@@ -158,25 +180,26 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
   );
 }
 
-function parseTags(csv: string): string[] {
-  if (!csv) return [];
-  return Array.from(
-    new Set(
-      csv
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
-    ),
-  );
+function mergeTags(selected: string[], customCsv: string): string[] {
+  const merged = selected.concat(parseCsv(customCsv));
+  return Array.from(new Set(merged.map((t) => t.trim()).filter(Boolean)));
 }
 
-function safeTagsToCsv(tags: string) {
+function parseCsv(csv: string): string[] {
+  if (!csv) return [];
+  return csv
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+function safeTagsToArray(tags: string): string[] {
   try {
     const arr = JSON.parse(tags) as unknown;
-    if (Array.isArray(arr)) return arr.join(", ");
-    return "";
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((x): x is string => typeof x === "string");
   } catch {
-    return "";
+    return [];
   }
 }
 
@@ -189,15 +212,18 @@ function Field({
   name,
   required,
   defaultValue,
+  hint,
 }: {
   label: string;
   name: string;
   required?: boolean;
   defaultValue?: string;
+  hint?: string;
 }) {
   return (
     <label className="block">
       <div className="text-sm font-medium text-slate-700">{label}</div>
+      {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
       <input
         className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:ring-2 focus:ring-slate-900/10"
         name={name}
@@ -214,16 +240,19 @@ function Textarea({
   rows,
   required,
   defaultValue,
+  hint,
 }: {
   label: string;
   name: string;
   rows: number;
   required?: boolean;
   defaultValue?: string;
+  hint?: string;
 }) {
   return (
     <label className="block">
       <div className="text-sm font-medium text-slate-700">{label}</div>
+      {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
       <textarea
         className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm text-slate-900 outline-none focus:ring-2 focus:ring-slate-900/10"
         name={name}
@@ -232,6 +261,32 @@ function Textarea({
         defaultValue={defaultValue}
       />
     </label>
+  );
+}
+
+function TagSelector({ defaultSelected }: { defaultSelected: string[] }) {
+  const preset = ["政策分析", "资产配置", "市场解读", "宏观", "利率", "通胀", "就业", "科技股", "银行", "美元", "债券"];
+  const selected = new Set(defaultSelected);
+  return (
+    <div className="block">
+      <div className="text-sm font-medium text-slate-700">Tags（多选，可选）</div>
+      <div className="mt-1 text-xs text-slate-500">勾选常用标签，也可以在下方补充自定义标签（逗号分隔）。</div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {preset.map((t) => (
+          <label key={t} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm">
+            <input className="accent-slate-900" type="checkbox" name="tags" value={t} defaultChecked={selected.has(t)} />
+            <span className="text-slate-700">{t}</span>
+          </label>
+        ))}
+      </div>
+      <div className="mt-3">
+        <input
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:ring-2 focus:ring-slate-900/10"
+          name="tags_custom"
+          placeholder="自定义标签（逗号分隔），例如：美联储, 软着陆"
+        />
+      </div>
+    </div>
   );
 }
 

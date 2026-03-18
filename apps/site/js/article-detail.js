@@ -47,6 +47,14 @@
     return item && (item.shortAnswer || item.short_answer || item.short_answer_text || "");
   }
 
+  function getSummary(item) {
+    return item && (item.summary || "");
+  }
+
+  function getSources(item) {
+    return item && (item.sources || "");
+  }
+
   var slug = qs("slug");
   var loading = document.getElementById("article-loading");
   var header = document.getElementById("article-header");
@@ -55,7 +63,11 @@
   var slugEl = document.getElementById("article-slug");
   var shortAnswerWrap = document.getElementById("article-short-answer");
   var shortAnswerText = document.getElementById("article-short-answer-text");
+  var summaryWrap = document.getElementById("article-summary");
+  var summaryText = document.getElementById("article-summary-text");
   var body = document.getElementById("article-body");
+  var sourcesWrap = document.getElementById("article-sources");
+  var sourcesList = document.getElementById("article-sources-list");
   var tagsWrap = document.getElementById("article-tags");
   var tagsList = document.getElementById("article-tags-list");
   var relatedEl = document.getElementById("article-related");
@@ -170,13 +182,42 @@
       if (title) title.textContent = item.title || "";
       if (date) date.textContent = item.publishedAt ? formatDateTime(item.publishedAt) : "";
       if (slugEl) slugEl.textContent = item.slug || "";
-      var sa = getShortAnswer(item) || item.summary || "";
-      if (shortAnswerWrap && shortAnswerText && sa) {
+      var shortAnswer = getShortAnswer(item);
+      var summary = getSummary(item);
+      var sources = getSources(item);
+
+      // GEO order:
+      // - short answer card (fallback to summary for legacy articles)
+      // - summary block (only show when shortAnswer exists to avoid duplication)
+      var saShown = shortAnswer || (!shortAnswer && summary ? summary : "");
+      if (shortAnswerWrap && shortAnswerText && saShown) {
         shortAnswerWrap.classList.remove("hidden");
-        shortAnswerText.textContent = sa;
+        shortAnswerText.textContent = saShown;
+      }
+
+      if (summaryWrap && summaryText && shortAnswer && summary) {
+        summaryWrap.classList.remove("hidden");
+        summaryText.textContent = summary;
       }
 
       if (body) body.innerHTML = renderBodyMarkdownAsPlainText(item.body);
+
+      if (sourcesWrap && sourcesList && sources && sources.trim()) {
+        var lines = sources
+          .split(/\r?\n/g)
+          .map(function (x) {
+            return x.trim();
+          })
+          .filter(Boolean);
+        if (lines.length) {
+          sourcesWrap.classList.remove("hidden");
+          sourcesList.innerHTML = lines
+            .map(function (x) {
+              return "<li>" + escapeHtml(x) + "</li>";
+            })
+            .join("");
+        }
+      }
 
       var itemTags = safeParseTags(item.tags);
       renderTagPills(itemTags);
