@@ -1,17 +1,9 @@
 (function () {
   function getCmsBase() {
-    var meta = document.querySelector('meta[name="fedzx-cms-base"]');
-    var fromMeta = meta && meta.getAttribute("content");
-    if (fromMeta && fromMeta.trim()) return fromMeta.trim();
-
-    // If not configured:
-    // - local preview: assume CMS on localhost:3000
-    // - production: assume cms.<root-domain>
-    var host = window.location.hostname;
-    if (host === "localhost" || host === "127.0.0.1") return "http://localhost:3000";
-
-    var root = host.replace(/^www\./, "");
-    return "https://cms." + root;
+    return (window.FEDZX && window.FEDZX.getCmsBase ? window.FEDZX.getCmsBase() : window.location.origin).replace(
+      /\/+$/,
+      "",
+    );
   }
 
   function getAssetBase() {

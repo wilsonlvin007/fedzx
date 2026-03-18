@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>文章 - 联储资讯</title>
+
+    <meta name="fedzx-cms-base" content="https://cms.fedzx.com" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body class="bg-white text-gray-900">
+    <nav class="navbar-sticky border-b border-gray-100 px-4 py-3">
+      <div class="mx-auto max-w-[800px] flex justify-between items-center">
+        <a class="text-lg font-semibold text-gray-900" href="/">联储资讯</a>
+        <div class="hidden md:flex items-center gap-6 text-sm">
+          <a href="/" class="text-gray-700 hover:text-gray-900">首页</a>
+          <a href="/articles/" class="text-gray-900 font-medium">最新文章</a>
+        </div>
+        <button id="mobile-menu-button" class="md:hidden text-gray-700" aria-label="Open menu">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="mobile-menu" class="md:hidden hidden py-3 border-t border-gray-100">
+        <div class="mx-auto max-w-[800px] flex flex-col gap-2">
+          <a href="/" class="text-gray-700 hover:text-gray-900 px-2 py-1">首页</a>
+          <a href="/articles/" class="text-gray-900 font-medium px-2 py-1">最新文章</a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="px-4 py-10">
+      <div class="mx-auto max-w-[800px]">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 class="text-2xl md:text-3xl font-bold tracking-tight">最新文章</h1>
+            <p class="mt-2 text-sm text-gray-600">全部数据来自 CMS（只展示已发布文章）。</p>
+            <div id="articles-tag-filter" class="mt-3 hidden">
+              <a
+                id="articles-tag-filter-clear"
+                href="/articles/"
+                class="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 hover:bg-gray-200"
+              >
+                <span>标签：</span>
+                <span id="articles-tag-filter-value" class="font-semibold"></span>
+                <span class="text-gray-400">·</span>
+                <span class="text-gray-500">清除筛选</span>
+              </a>
+            </div>
+          </div>
+          <div class="w-full sm:w-80">
+            <input
+              id="articles-search"
+              class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+              placeholder="搜索标题或摘要"
+            />
+          </div>
+        </div>
+
+        <div class="mt-6 space-y-3" id="articles-list">
+          <div class="rounded-2xl border border-gray-200 bg-white p-5 text-gray-600">加载中...</div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-gray-900 text-white py-12">
+      <div class="mx-auto max-w-[800px] px-4">
+        <div class="border-t border-gray-800 pt-8 text-center">
+          <p class="text-gray-400">
+            © 2026 联储资讯 版权所有 |
+            <a href="https://beian.miit.gov.cn/" target="_blank" class="text-blue-400 hover:text-blue-300" rel="noreferrer">
+              京ICP备17065765号&nbsp;
+            </a>
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <script src="../js/site-api.js" defer></script>
+    <script src="../js/articles-list.js" defer></script>
+    <script src="../js/script.js" defer></script>
+  </body>
+</html>
