@@ -178,10 +178,15 @@
         const parts = p.split("/").filter(Boolean);
         const idx = parts.indexOf("docs");
         if (idx === -1) return "";
-        const slug = parts[idx + 1] || "";
+        const raw = parts[idx + 1] || "";
         // avoid accidental internal path
-        if (!slug || slug === "_doc" || slug === "index.html") return "";
-        return slug;
+        if (!raw || raw === "_doc" || raw === "index.html") return "";
+        try {
+          // pathname keeps percent-encoding; decode once so we don't double-encode on fetch().
+          return decodeURIComponent(raw);
+        } catch (_e) {
+          return raw;
+        }
       }
 
       async function load() {
