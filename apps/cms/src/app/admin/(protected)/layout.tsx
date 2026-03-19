@@ -23,6 +23,9 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
               <Link className="hover:text-slate-900" href="/admin/recommendations">
                 推荐位
               </Link>
+              <a className="hover:text-slate-900" href="https://fedzx.com/" target="_blank" rel="noreferrer">
+                官网
+              </a>
             </nav>
           </div>
           <div className="flex items-center gap-3">
@@ -36,4 +39,3 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
     </div>
   );
 }
-

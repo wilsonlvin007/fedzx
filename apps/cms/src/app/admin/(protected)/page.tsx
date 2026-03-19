@@ -20,11 +20,10 @@ export default async function AdminHomePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card title="文章" value={articles} href="/admin/articles" />
         <Card title="页面模块" value={pages} href="/admin/pages" />
         <Card title="推荐位" value={recommendations} href="/admin/recommendations" />
-        <ExternalCard title="官网" href="https://fedzx.com/" />
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -61,15 +60,5 @@ function Card({ title, value, href }: { title: string; value: number; href: stri
       <div className="mt-2 text-3xl font-semibold text-slate-900">{value}</div>
       <div className="mt-4 text-sm text-slate-600">进入管理</div>
     </Link>
-  );
-}
-
-function ExternalCard({ title, href }: { title: string; href: string }) {
-  return (
-    <a href={href} target="_blank" rel="noreferrer" className="rounded-2xl border border-slate-200 bg-white p-5 hover:bg-slate-50">
-      <div className="text-sm text-slate-600">{title}</div>
-      <div className="mt-2 text-3xl font-semibold text-slate-900">→</div>
-      <div className="mt-4 text-sm text-slate-600">打开网站</div>
-    </a>
   );
 }
