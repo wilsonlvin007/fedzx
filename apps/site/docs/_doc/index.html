@@ -155,13 +155,9 @@
     </footer>
 
     <script src="../../js/site-api.js" defer></script>
+    <script src="../../js/markdown-lite.js" defer></script>
     <script src="../../js/script.js" defer></script>
-    <script type="module">
-      import React from "https://esm.sh/react@19.2.3";
-      import { createRoot } from "https://esm.sh/react-dom@19.2.3/client";
-      import ReactMarkdown from "https://esm.sh/react-markdown@9.0.1";
-      import remarkGfm from "https://esm.sh/remark-gfm@4.0.0";
-
+    <script>
       const loadingEl = document.getElementById("doc-loading");
       const errorEl = document.getElementById("doc-error");
       const titleEl = document.getElementById("doc-title");
@@ -201,13 +197,8 @@
           document.title = (data && data.title ? data.title : "文档") + " - 联储资讯";
           if (!rootEl) return;
 
-          const root = createRoot(rootEl);
-          root.render(
-            React.createElement(ReactMarkdown, {
-              remarkPlugins: [remarkGfm],
-              children: (data && data.content) || "",
-            }),
-          );
+          const md = (data && data.content) || "";
+          rootEl.innerHTML = window.FEDZX.renderMarkdownLite ? window.FEDZX.renderMarkdownLite(md) : "";
         } catch (e) {
           showError("加载失败：文档不存在或 CMS 接口不可用。");
         }
@@ -217,4 +208,3 @@
     </script>
   </body>
 </html>
-
