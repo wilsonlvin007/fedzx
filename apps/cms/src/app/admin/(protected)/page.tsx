@@ -39,6 +39,14 @@ export default async function AdminHomePage() {
           <Link className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50" href="/api/public/pages/home">
             查看 Home 模块 JSON
           </Link>
+          <a
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50"
+            href="https://fedzx.com/docs/content-guidelines/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            运营文档
+          </a>
         </div>
       </div>
     </div>
@@ -54,4 +62,3 @@ function Card({ title, value, href }: { title: string; value: number; href: stri
     </Link>
   );
 }
-
