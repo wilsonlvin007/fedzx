@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
-import { resolveDocBySlug } from "@/app/api/internal/docs/_lib";
+import { listDocs } from "@/app/api/internal/docs/_lib";
 
 export function OPTIONS() {
   return corsOptions();
 }
 
 export async function GET() {
-  // Backward compatible alias for older static page.
-  const doc = await resolveDocBySlug("content-guidelines");
-  if (!doc) return jsonWithCors({ error: "Not found" }, 404);
-  return jsonWithCors({ title: doc.title, content: doc.content });
+  const { categories } = await listDocs();
+  return jsonWithCors(categories);
 }
 
 function jsonWithCors(payload: unknown, status = 200) {
@@ -29,3 +27,4 @@ function corsOptions() {
   res.headers.set("Cache-Control", "public, max-age=86400");
   return res;
 }
+

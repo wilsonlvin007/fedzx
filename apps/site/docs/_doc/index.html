@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GEO 内容生产规范 - 联储资讯</title>
+    <title>文档 - 联储资讯</title>
 
     <meta name="fedzx-cms-base" content="https://cms.fedzx.com" />
 
@@ -33,6 +33,11 @@
       }
       .md ul {
         list-style: disc;
+        padding-left: 1.25rem;
+        margin: 0.75rem 0;
+      }
+      .md ol {
+        list-style: decimal;
         padding-left: 1.25rem;
         margin: 0.75rem 0;
       }
@@ -95,6 +100,7 @@
         <div class="hidden md:flex items-center gap-6 text-sm">
           <a href="/" class="text-gray-700 hover:text-gray-900">首页</a>
           <a href="/articles/" class="text-gray-700 hover:text-gray-900">最新文章</a>
+          <a href="/docs/" class="text-gray-700 hover:text-gray-900">知识库</a>
         </div>
         <button id="mobile-menu-button" class="md:hidden text-gray-700" aria-label="Open menu">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6">
@@ -106,6 +112,7 @@
         <div class="mx-auto max-w-[800px] flex flex-col gap-2">
           <a href="/" class="text-gray-700 hover:text-gray-900 px-2 py-1">首页</a>
           <a href="/articles/" class="text-gray-700 hover:text-gray-900 px-2 py-1">最新文章</a>
+          <a href="/docs/" class="text-gray-700 hover:text-gray-900 px-2 py-1">知识库</a>
         </div>
       </div>
     </nav>
@@ -114,8 +121,8 @@
       <div class="mx-auto max-w-[800px]">
         <div class="flex items-start justify-between gap-4">
           <div>
-            <h1 id="doc-title" class="text-2xl md:text-3xl font-bold tracking-tight">运营文档</h1>
-            <p class="mt-2 text-sm text-gray-600">内部使用：内容生产规范与 GEO 写作标准。</p>
+            <a class="text-sm text-gray-700 hover:text-gray-900" href="/docs/">← 返回知识库目录</a>
+            <h1 id="doc-title" class="mt-3 text-2xl md:text-3xl font-bold tracking-tight">文档</h1>
           </div>
           <a
             class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50"
@@ -168,11 +175,30 @@
         }
       }
 
+      function getSlugFromPath() {
+        const p = window.location.pathname.replace(/\\/+/g, "/");
+        // expected: /docs/<slug>/ or /docs/<slug>
+        const parts = p.split("/").filter(Boolean);
+        const idx = parts.indexOf("docs");
+        if (idx === -1) return "";
+        const slug = parts[idx + 1] || "";
+        // avoid accidental internal path
+        if (!slug || slug === "_doc" || slug === "index.html") return "";
+        return slug;
+      }
+
       async function load() {
+        const slug = getSlugFromPath();
+        if (!slug) {
+          window.location.href = "/docs/";
+          return;
+        }
+
         try {
-          const data = await window.FEDZX.fetchJson("/api/internal/docs/content-guidelines");
+          const data = await window.FEDZX.fetchJson("/api/internal/docs/" + encodeURIComponent(slug));
           if (loadingEl) loadingEl.classList.add("hidden");
           if (titleEl && data && data.title) titleEl.textContent = data.title;
+          document.title = (data && data.title ? data.title : "文档") + " - 联储资讯";
           if (!rootEl) return;
 
           const root = createRoot(rootEl);
@@ -183,7 +209,7 @@
             }),
           );
         } catch (e) {
-          showError("加载失败：请确认 CMS 文档接口可访问，且服务器存在 /opt/fedzx/docs/content-guidelines.md");
+          showError("加载失败：文档不存在或 CMS 接口不可用。");
         }
       }
 

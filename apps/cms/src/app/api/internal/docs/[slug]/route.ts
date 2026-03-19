@@ -5,11 +5,11 @@ export function OPTIONS() {
   return corsOptions();
 }
 
-export async function GET() {
-  // Backward compatible alias for older static page.
-  const doc = await resolveDocBySlug("content-guidelines");
+export async function GET(_: Request, ctx: { params: Promise<{ slug: string }> }) {
+  const { slug } = await ctx.params;
+  const doc = await resolveDocBySlug(slug);
   if (!doc) return jsonWithCors({ error: "Not found" }, 404);
-  return jsonWithCors({ title: doc.title, content: doc.content });
+  return jsonWithCors({ title: doc.title, content: doc.content, slug: doc.slug, category: doc.category });
 }
 
 function jsonWithCors(payload: unknown, status = 200) {
@@ -29,3 +29,4 @@ function corsOptions() {
   res.headers.set("Cache-Control", "public, max-age=86400");
   return res;
 }
+

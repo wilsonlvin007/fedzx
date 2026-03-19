@@ -41,11 +41,11 @@ export default async function AdminHomePage() {
           </Link>
           <a
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50"
-            href="https://fedzx.com/docs/content-guidelines/"
+            href="https://fedzx.com/docs/"
             target="_blank"
             rel="noreferrer"
           >
-            运营文档
+            知识库
           </a>
         </div>
       </div>
