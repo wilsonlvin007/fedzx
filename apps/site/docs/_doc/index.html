@@ -194,11 +194,24 @@
         try {
           const data = await window.FEDZX.fetchJson("/api/internal/docs/" + encodeURIComponent(slug));
           if (loadingEl) loadingEl.classList.add("hidden");
-          if (titleEl && data && data.title) titleEl.textContent = data.title;
-          document.title = (data && data.title ? data.title : "文档") + " - 联储资讯";
+          const rawTitle = (data && data.title) || "文档";
+          if (titleEl) titleEl.textContent = rawTitle;
+          document.title = rawTitle + " - 联储资讯";
           if (!rootEl) return;
 
-          const md = (data && data.content) || "";
+          // Avoid double H1:
+          // - Page already shows a top title.
+          // - If markdown starts with "# ...", strip that first line before rendering.
+          let md = String((data && data.content) || "");
+          md = md.replace(/\r\n/g, "\n");
+          const firstLine = (md.split("\n")[0] || "").trim();
+          const m = firstLine.match(/^#\s+(.+)\s*$/);
+          if (m && m[1]) {
+            if (titleEl) titleEl.textContent = m[1].trim();
+            document.title = (m[1].trim() || rawTitle) + " - 联储资讯";
+            md = md.split("\n").slice(1).join("\n");
+          }
+
           rootEl.innerHTML = window.FEDZX.renderMarkdownLite ? window.FEDZX.renderMarkdownLite(md) : "";
         } catch (e) {
           showError("加载失败：文档不存在或 CMS 接口不可用。");
