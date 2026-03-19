@@ -172,7 +172,8 @@
       }
 
       function getSlugFromPath() {
-        const p = window.location.pathname.replace(/\\/+/g, "/");
+        // Normalize multiple slashes to a single slash.
+        const p = window.location.pathname.replace(/\/+/g, "/");
         // expected: /docs/<slug>/ or /docs/<slug>
         const parts = p.split("/").filter(Boolean);
         const idx = parts.indexOf("docs");
