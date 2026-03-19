@@ -102,9 +102,68 @@
 3. Summary（提示：首页人类可读摘要）
 4. Body（正文 Markdown）
 5. Sources（提示：来源换行分隔）
-6. Tags（多选 + 自定义 CSV）
+6. Tags（多选 + 自定义标签新增入库）
 
 这套顺序与前台呈现一致，让运营“只填内容，不用思考结构”。
+
+### 5.1 账户设置 / 修改密码
+
+新增页面：
+
+- `/admin/settings`
+
+用途：
+
+- 当前登录管理员修改自己的密码
+
+表单字段：
+
+- 当前密码
+- 新密码
+- 确认新密码
+
+接口：
+
+- `POST /api/admin/account/password`
+
+逻辑：
+
+- 先用当前 session 确认操作者身份
+- 校验当前密码是否正确
+- 新密码至少 6 位
+- 两次输入必须一致
+- 成功后更新 `User.passwordHash`
+
+### 5.2 标签池与文章标签关系
+
+为了让“自定义标签”可以沉淀并复用，新增了两张表：
+
+- `Tag`
+  - `id`
+  - `name`
+  - `normalizedName`（唯一，做防重复）
+- `ArticleTag`
+  - `articleId`
+  - `tagId`
+
+后台行为：
+
+- 文章编辑页的“自定义标签”点击添加后，会调用 `POST /api/admin/tags`
+- 如果标签不存在，就写入 `Tag`
+- 如果已存在，就直接复用
+- 添加成功后：
+  - 常用标签列表立即出现该标签
+  - 并自动选中
+
+兼容策略：
+
+- `Article.tags` 这个旧字段仍然保留
+- 每次保存文章时，会把关联标签同步回 `Article.tags` 的 JSON 字符串
+
+这样做的好处是：
+
+- 新的标签池可复用
+- 旧前台/API 不需要一次性全部重写
 
 ---
 
@@ -158,9 +217,12 @@
 - 检查 `.env.production` 的 `DATABASE_URL`
 - 跑 `npx prisma migrate deploy`
 
+如果是本次标签系统升级，还要确认新迁移已执行：
+
+- `20260320093000_add_tag_tables`
+
 3) 登录证书报错（ERR_CERT_COMMON_NAME_INVALID）
 
 - Nginx server block 证书配置错
 - 用 openssl 检查：
   - `echo | openssl s_client -connect cms.fedzx.com:443 -servername cms.fedzx.com 2>/dev/null | openssl x509 -noout -subject -ext subjectAltName`
-

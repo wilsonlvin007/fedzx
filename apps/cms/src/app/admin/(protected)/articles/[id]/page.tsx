@@ -4,10 +4,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser } from "@/app/admin/(protected)/_lib/require-admin";
 import { ContentStatus } from "@/generated/prisma/enums";
+import { TagSelector } from "@/app/admin/(protected)/_components/TagSelector";
+import { getTagOptions, syncArticleTags } from "@/lib/tags";
 
 export default async function EditArticlePage(props: { params: Promise<{ id: string }> }) {
   await requireAdminUser();
   const { id } = await props.params;
+  const tagOptions = await getTagOptions();
 
   const article = await prisma.article.findUnique({ where: { id } });
   if (!article) {
@@ -34,8 +37,7 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
     const body = String(formData.get("body") ?? "").trim();
     const sources = String(formData.get("sources") ?? "").trim();
     const coverImage = String(formData.get("coverImage") ?? "").trim();
-    const tagsSelected = formData.getAll("tags").map((t) => String(t).trim()).filter(Boolean);
-    const tagsCustomCsv = String(formData.get("tags_custom") ?? "").trim();
+    const tagValues = formData.getAll("tagValues").map((t) => String(t).trim()).filter(Boolean);
     const statusRaw = String(formData.get("status") ?? "DRAFT").trim();
     const status = isContentStatus(statusRaw) ? statusRaw : "DRAFT";
 
@@ -52,11 +54,12 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
         body,
         sources: sources || null,
         coverImage: coverImage || null,
-        tags: JSON.stringify(mergeTags(tagsSelected, tagsCustomCsv)),
         status: status as ContentStatus,
         updatedById: user.id,
       },
     });
+
+    await syncArticleTags(id, tagValues);
 
     revalidatePath(`/admin/articles/${id}`);
     revalidatePath("/admin/articles");
@@ -149,7 +152,7 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
         <Textarea label="Body（正文 Markdown）" name="body" rows={14} required defaultValue={article.body} />
         <Textarea label="Sources（可选）" name="sources" rows={4} defaultValue={article.sources ?? ""} hint="数据或观点来源（换行分隔）。" />
 
-        <TagSelector defaultSelected={safeTagsToArray(article.tags)} />
+        <TagSelector initialOptions={tagOptions} defaultSelected={safeTagsToArray(article.tags)} />
         <SelectStatus defaultValue={article.status} />
 
         <div className="flex items-center justify-end">
@@ -178,19 +181,6 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
       </div>
     </div>
   );
-}
-
-function mergeTags(selected: string[], customCsv: string): string[] {
-  const merged = selected.concat(parseCsv(customCsv));
-  return Array.from(new Set(merged.map((t) => t.trim()).filter(Boolean)));
-}
-
-function parseCsv(csv: string): string[] {
-  if (!csv) return [];
-  return csv
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
 }
 
 function safeTagsToArray(tags: string): string[] {
@@ -261,32 +251,6 @@ function Textarea({
         defaultValue={defaultValue}
       />
     </label>
-  );
-}
-
-function TagSelector({ defaultSelected }: { defaultSelected: string[] }) {
-  const preset = ["政策分析", "资产配置", "市场解读", "宏观", "利率", "通胀", "就业", "科技股", "银行", "美元", "债券"];
-  const selected = new Set(defaultSelected);
-  return (
-    <div className="block">
-      <div className="text-sm font-medium text-slate-700">Tags（多选，可选）</div>
-      <div className="mt-1 text-xs text-slate-500">勾选常用标签，也可以在下方补充自定义标签（逗号分隔）。</div>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {preset.map((t) => (
-          <label key={t} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm">
-            <input className="accent-slate-900" type="checkbox" name="tags" value={t} defaultChecked={selected.has(t)} />
-            <span className="text-slate-700">{t}</span>
-          </label>
-        ))}
-      </div>
-      <div className="mt-3">
-        <input
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:ring-2 focus:ring-slate-900/10"
-          name="tags_custom"
-          placeholder="自定义标签（逗号分隔），例如：美联储, 软着陆"
-        />
-      </div>
-    </div>
   );
 }
 

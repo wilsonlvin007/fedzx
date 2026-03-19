@@ -21,16 +21,6 @@
       .replace(/'/g, "&#039;");
   }
 
-  function renderBodyMarkdownAsPlainText(md) {
-    // Phase 4 (beginner-friendly): render markdown as plain text (safe) with basic paragraph breaks.
-    // Phase 4+ can upgrade to a markdown renderer if desired.
-    var text = String(md || "");
-    var parts = text.split(/\n{2,}/g).map(function (p) {
-      return "<p>" + escapeHtml(p) + "</p>";
-    });
-    return parts.join("");
-  }
-
   function safeParseTags(tags) {
     if (!tags) return [];
     if (Array.isArray(tags)) return tags;
@@ -200,7 +190,11 @@
         summaryText.textContent = summary;
       }
 
-      if (body) body.innerHTML = renderBodyMarkdownAsPlainText(item.body);
+      if (body) {
+        body.innerHTML = window.FEDZX.renderMarkdownLite
+          ? window.FEDZX.renderMarkdownLite(item.body || "")
+          : "<p>" + escapeHtml(item.body || "") + "</p>";
+      }
 
       if (sourcesWrap && sourcesList && sources && sources.trim()) {
         var lines = sources

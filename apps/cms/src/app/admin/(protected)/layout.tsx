@@ -29,6 +29,9 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <Link className="hidden sm:block text-sm text-slate-600 hover:text-slate-900" href="/admin/settings">
+              账户设置
+            </Link>
             <div className="hidden sm:block text-sm text-slate-600">{user.email}</div>
             <LogoutButton />
           </div>
