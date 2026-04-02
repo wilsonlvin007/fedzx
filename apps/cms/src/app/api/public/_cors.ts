@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-export function withPublicCors<T>(payload: T) {
-  const res = NextResponse.json(payload);
+export function withPublicCors<T>(payload: T, status = 200) {
+  const res = NextResponse.json(payload, { status });
   res.headers.set("Access-Control-Allow-Origin", "*");
   res.headers.set("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.headers.set("Access-Control-Allow-Headers", "content-type");
@@ -17,4 +17,3 @@ export function publicCorsOptions() {
   res.headers.set("Cache-Control", "public, max-age=86400");
   return res;
 }
-

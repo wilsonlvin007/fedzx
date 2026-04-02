@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdminUser } from "@/app/admin/(protected)/_lib/require-admin";
+import { getArticlesViews } from "@/lib/views";
+import { exportPublicSite } from "@/lib/public-export";
 
 export default async function ArticlesListPage() {
   await requireAdminUser();
@@ -19,6 +21,10 @@ export default async function ArticlesListPage() {
     },
   });
 
+  // 获取所有文章的阅读数
+  const articleIds = items.map(a => a.id);
+  const viewsMap = await getArticlesViews(articleIds);
+
   async function publish(formData: FormData) {
     "use server";
     const user = await requireAdminUser();
@@ -33,6 +39,7 @@ export default async function ArticlesListPage() {
         updatedById: user.id,
       },
     });
+    await exportPublicSite();
     revalidatePath("/admin/articles");
     redirect("/admin/articles");
   }
@@ -47,6 +54,7 @@ export default async function ArticlesListPage() {
       where: { id },
       data: { status: "DRAFT", publishedAt: null, updatedById: user.id },
     });
+    await exportPublicSite();
     revalidatePath("/admin/articles");
     redirect("/admin/articles");
   }
@@ -72,53 +80,60 @@ export default async function ArticlesListPage() {
             <tr>
               <th className="text-left font-medium px-4 py-3">标题</th>
               <th className="text-left font-medium px-4 py-3">状态</th>
+              <th className="text-right font-medium px-4 py-3">阅读数</th>
               <th className="text-left font-medium px-4 py-3">更新时间</th>
               <th className="text-left font-medium px-4 py-3">发布</th>
               <th className="text-right font-medium px-4 py-3">操作</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {items.map((a) => (
-              <tr key={a.id} className="hover:bg-slate-50/60">
-                <td className="px-4 py-3">
-                  <div className="font-medium text-slate-900">{a.title}</div>
-                  <div className="text-xs text-slate-500">{a.slug}</div>
-                </td>
-                <td className="px-4 py-3">
-                  <StatusPill status={a.status} />
-                </td>
-                <td className="px-4 py-3 text-slate-600">{formatDate(a.updatedAt)}</td>
-                <td className="px-4 py-3 text-slate-600">{a.publishedAt ? formatDate(a.publishedAt) : "-"}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-2">
-                    <Link
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50"
-                      href={`/admin/articles/${a.id}`}
-                    >
-                      编辑
-                    </Link>
-                    {a.status === "PUBLISHED" ? (
-                      <form action={unpublish}>
-                        <input type="hidden" name="id" value={a.id} />
-                        <button className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50" type="submit">
-                          下线
-                        </button>
-                      </form>
-                    ) : (
-                      <form action={publish}>
-                        <input type="hidden" name="id" value={a.id} />
-                        <button className="rounded-lg bg-slate-900 px-3 py-2 text-white hover:bg-slate-800" type="submit">
-                          发布
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {items.map((a) => {
+              const views = viewsMap.get(a.id) || 0;
+              return (
+                <tr key={a.id} className="hover:bg-slate-50/60">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-slate-900">{a.title}</div>
+                    <div className="text-xs text-slate-500">{a.slug}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusPill status={a.status} />
+                  </td>
+                  <td className="px-4 py-3 text-right text-slate-600">
+                    {views > 0 ? views.toLocaleString() : "-"}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{formatDate(a.updatedAt)}</td>
+                  <td className="px-4 py-3 text-slate-600">{a.publishedAt ? formatDate(a.publishedAt) : "-"}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <Link
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50"
+                        href={`/admin/articles/${a.id}`}
+                      >
+                        编辑
+                      </Link>
+                      {a.status === "PUBLISHED" ? (
+                        <form action={unpublish}>
+                          <input type="hidden" name="id" value={a.id} />
+                          <button className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50" type="submit">
+                            下线
+                          </button>
+                        </form>
+                      ) : (
+                        <form action={publish}>
+                          <input type="hidden" name="id" value={a.id} />
+                          <button className="rounded-lg bg-slate-900 px-3 py-2 text-white hover:bg-slate-800" type="submit">
+                            发布
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {items.length === 0 ? (
               <tr>
-                <td className="px-4 py-10 text-center text-slate-600" colSpan={5}>
+                <td className="px-4 py-10 text-center text-slate-600" colSpan={6}>
                   还没有文章，先去新建一篇。
                 </td>
               </tr>
@@ -144,4 +159,3 @@ function StatusPill({ status }: { status: string }) {
 function formatDate(d: Date) {
   return new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(d);
 }
-

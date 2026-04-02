@@ -6,6 +6,7 @@ import { requireAdminUser } from "@/app/admin/(protected)/_lib/require-admin";
 import { ContentStatus } from "@/generated/prisma/enums";
 import { TagSelector } from "@/app/admin/(protected)/_components/TagSelector";
 import { getTagOptions, syncArticleTags } from "@/lib/tags";
+import { exportPublicSite } from "@/lib/public-export";
 
 export default async function EditArticlePage(props: { params: Promise<{ id: string }> }) {
   await requireAdminUser();
@@ -60,6 +61,7 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
     });
 
     await syncArticleTags(id, tagValues);
+    await exportPublicSite();
 
     revalidatePath(`/admin/articles/${id}`);
     revalidatePath("/admin/articles");
@@ -73,6 +75,7 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
       where: { id },
       data: { status: "PUBLISHED", publishedAt: new Date(), updatedById: user.id },
     });
+    await exportPublicSite();
     revalidatePath(`/admin/articles/${id}`);
     revalidatePath("/admin/articles");
     redirect(`/admin/articles/${id}`);
@@ -85,6 +88,7 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
       where: { id },
       data: { status: "DRAFT", publishedAt: null, updatedById: user.id },
     });
+    await exportPublicSite();
     revalidatePath(`/admin/articles/${id}`);
     revalidatePath("/admin/articles");
     redirect(`/admin/articles/${id}`);
@@ -97,6 +101,7 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
     if (confirm !== "DELETE") return;
 
     await prisma.article.delete({ where: { id } });
+    await exportPublicSite();
     revalidatePath("/admin/articles");
     redirect("/admin/articles");
   }

@@ -10,7 +10,8 @@
     "db:init": "node scripts/db-init.mjs",
     "db:migrate": "npm run db:init && prisma migrate dev",
     "db:generate": "prisma generate",
-    "seed:home": "tsx scripts/seed-home-from-live.ts"
+    "seed:home": "tsx scripts/seed-home-from-live.ts",
+    "export:public": "tsx scripts/export-public.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.5.0",

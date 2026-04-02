@@ -30,9 +30,9 @@ export async function POST(req: NextRequest) {
         body: articleBody,
         sources: sources || null,
         status: 'DRAFT',
+        tags: '[]',
         createdById: 'cmmutco3000006ktwden2pnlc',
         updatedById: 'cmmutco3000006ktwden2pnlc',
-        tags: '[]',
       },
     })
 
