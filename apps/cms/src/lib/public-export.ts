@@ -23,6 +23,35 @@ md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
   return defaultRender(tokens, idx, options, env, self);
 };
 
+/**
+ * 中文写作习惯用单换行分段，但 Markdown 规范要求空行分段。
+ * 此函数在连续的纯文本行之间自动插入空行，确保正确生成 <p> 标签。
+ */
+function normalizeParagraphs(md: string): string {
+  const lines = md.split("\n");
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (i > 0) {
+      const prev = lines[i - 1].trimEnd();
+      const curr = lines[i].trimStart();
+      const isTextLine = (s: string) =>
+        s.length > 0 &&
+        !s.startsWith("#") &&
+        !/^[-*+]\s/.test(s) &&
+        !/^\d+\.\s/.test(s) &&
+        !s.startsWith(">") &&
+        !s.startsWith("|") &&
+        !s.startsWith("```") &&
+        !/^[-*_]{3,}$/.test(s);
+      if (prev && curr && isTextLine(prev) && isTextLine(curr)) {
+        out.push("");
+      }
+    }
+    out.push(lines[i]);
+  }
+  return out.join("\n");
+}
+
 type PublicArticle = {
   id: string;
   slug: string;
@@ -90,7 +119,7 @@ function renderArticlePage(article: PublicArticle, all: PublicArticle[]) {
   const related = all.filter((item) => item.slug !== article.slug).slice(0, 3);
   const description = article.summary || article.shortAnswer || article.question || article.title;
   const canonical = absoluteUrl(articlePath(article.slug));
-  const bodyHtml = md.render(article.body || "");
+  const bodyHtml = md.render(normalizeParagraphs(article.body || ""));
   const sourcesHtml = renderSources(article.sources || "");
   const relatedHtml = related
     .map(
