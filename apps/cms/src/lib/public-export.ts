@@ -1,8 +1,27 @@
 import { promises as fs } from "fs";
 import path from "path";
+import MarkdownIt from "markdown-it";
 import { prisma } from "@/lib/prisma";
 
 const PUBLIC_ROOT = process.env.PUBLIC_SITE_ROOT || "/var/www/fedzx";
+
+const md = new MarkdownIt({ html: false, linkify: true, typographer: true });
+// 给所有外部链接加 target="_blank" + noopener
+const defaultRender =
+  md.renderer.rules.link_open ||
+  function (tokens, idx, options, _env, self) {
+    return self.renderToken(tokens, idx, options);
+  };
+md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const href = token.attrGet("href") || "";
+  // 外部链接（http/https）才加 blank
+  if (/^https?:\/\//.test(href)) {
+    token.attrSet("target", "_blank");
+    token.attrSet("rel", "noreferrer noopener");
+  }
+  return defaultRender(tokens, idx, options, env, self);
+};
 
 type PublicArticle = {
   id: string;
@@ -71,7 +90,7 @@ function renderArticlePage(article: PublicArticle, all: PublicArticle[]) {
   const related = all.filter((item) => item.slug !== article.slug).slice(0, 3);
   const description = article.summary || article.shortAnswer || article.question || article.title;
   const canonical = absoluteUrl(articlePath(article.slug));
-  const bodyHtml = renderMarkdownLite(article.body || "");
+  const bodyHtml = md.render(article.body || "");
   const sourcesHtml = renderSources(article.sources || "");
   const relatedHtml = related
     .map(
@@ -331,110 +350,6 @@ function renderSourceLine(line: string) {
   return `<li>${escapeHtml(line)}</li>`;
 }
 
-function renderMarkdownLite(md: string) {
-  const lines = String(md || "").replace(/\r\n/g, "\n").split("\n");
-  const out: string[] = [];
-  let inCode = false;
-  let codeLines: string[] = [];
-
-  function flushCode() {
-    if (!inCode) return;
-    out.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
-    inCode = false;
-    codeLines = [];
-  }
-
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-    const fence = line.match(/^```(\w+)?\s*$/);
-    if (fence) {
-      if (inCode) flushCode();
-      else {
-        inCode = true;
-        codeLines = [];
-      }
-      i++;
-      continue;
-    }
-    if (inCode) {
-      codeLines.push(line);
-      i++;
-      continue;
-    }
-    if (/^\s*---\s*$/.test(line)) {
-      out.push("<hr/>");
-      i++;
-      continue;
-    }
-    const heading = line.match(/^(#{1,3})\s+(.+)\s*$/);
-    if (heading) {
-      const level = heading[1].length;
-      out.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
-      i++;
-      continue;
-    }
-    const quote = line.match(/^\s*>\s?(.*)$/);
-    if (quote) {
-      out.push(`<blockquote><p>${inlineMarkdown(quote[1])}</p></blockquote>`);
-      i++;
-      continue;
-    }
-    if (/^\s*[-*]\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
-        i++;
-      }
-      out.push(`<ul>${items.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ul>`);
-      continue;
-    }
-    if (/^\s*\d+\.\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
-        i++;
-      }
-      out.push(`<ol>${items.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ol>`);
-      continue;
-    }
-    if (!line.trim()) {
-      i++;
-      continue;
-    }
-    const paragraph = [line.trimEnd()];
-    i++;
-    while (
-      i < lines.length &&
-      lines[i].trim() &&
-      !/^(#{1,3})\s+/.test(lines[i]) &&
-      !/^\s*---\s*$/.test(lines[i]) &&
-      !/^\s*[-*]\s+/.test(lines[i]) &&
-      !/^\s*\d+\.\s+/.test(lines[i]) &&
-      !/^\s*>\s?/.test(lines[i]) &&
-      !/^```/.test(lines[i])
-    ) {
-      paragraph.push(lines[i].trimEnd());
-      i++;
-    }
-    out.push(`<p>${inlineMarkdown(paragraph.join("\n"))}</p>`);
-  }
-  flushCode();
-  return out.join("\n");
-}
-
-function inlineMarkdown(md: string) {
-  let value = escapeHtml(md);
-  value = value.replace(/`([^`]+)`/g, (_m, code) => `<code>${escapeHtml(code)}</code>`);
-  value = value.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  value = value.replace(/(^|[\s(])\*([^*\n]+)\*(?=$|[\s).,!?:;])/g, "$1<em>$2</em>");
-  value = value.replace(/(^|[\s(])_([^_\n]+)_(?=$|[\s).,!?:;])/g, "$1<em>$2</em>");
-  value = value.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_m, text, url) => {
-    return `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer noopener">${escapeHtml(text)}</a>`;
-  });
-  return value;
-}
-
 function sharedHead() {
   return `
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -602,6 +517,14 @@ function articleStyles() {
     .article-body blockquote { border-left: 4px solid #2563EB; background: #EFF6FF; margin: 1.5em 0; padding: 14px 18px; border-radius: 0 8px 8px 0; color: #1D4ED8; font-style: italic; }
     .article-body code { background: #F1F5F9; color: #0F172A; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; }
     .article-body strong { color: #0F1B2D; }
+    .article-body table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.92rem; }
+    .article-body th, .article-body td { border: 1px solid #E5E7EB; padding: 10px 14px; text-align: left; vertical-align: top; }
+    .article-body th { background: #F8FAFD; font-weight: 700; color: #0F1B2D; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.3px; }
+    .article-body tr:nth-child(even) td { background: #FAFBFC; }
+    .article-body pre { background: #1E293B; color: #E2E8F0; padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 1.5em 0; font-size: 0.88rem; line-height: 1.7; }
+    .article-body pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+    .article-body hr { border: none; border-top: 2px solid #E5E7EB; margin: 2em 0; }
+    .article-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 1em 0; }
     #article-sources { background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; padding: 22px 24px; margin-top: 40px; }
     #article-sources h2 { font-size: 1rem; font-weight: 700; color: #1C2B3A; margin: 0 0 14px; }
     #article-sources-list { list-style: none; padding: 0; margin: 0; }
