@@ -5,6 +5,7 @@ import { requireAdminUser } from "@/app/admin/(protected)/_lib/require-admin";
 import { TagSelector } from "@/app/admin/(protected)/_components/TagSelector";
 import { getTagOptions, syncArticleTags } from "@/lib/tags";
 import { generateSlugFromTitle } from "@/lib/utils/slug";
+import { SubmitButton } from "@/app/admin/(protected)/_components/SubmitButton";
 
 export default async function NewArticlePage() {
   await requireAdminUser();
@@ -94,9 +95,9 @@ export default async function NewArticlePage() {
         <TagSelector initialOptions={tagOptions} />
 
         <div className="flex items-center justify-end">
-          <button className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800" type="submit">
+          <SubmitButton className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800" loadingText="创建中…">
             创建草稿
-          </button>
+          </SubmitButton>
         </div>
       </form>
 

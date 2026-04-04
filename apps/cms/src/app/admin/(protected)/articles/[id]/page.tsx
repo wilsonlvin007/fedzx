@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminUser } from "@/app/admin/(protected)/_lib/require-admin";
 import { ContentStatus } from "@/generated/prisma/enums";
 import { TagSelector } from "@/app/admin/(protected)/_components/TagSelector";
+import { SubmitButton } from "@/app/admin/(protected)/_components/SubmitButton";
 import { getTagOptions, syncArticleTags } from "@/lib/tags";
 import { exportPublicSite } from "@/lib/public-export";
 
@@ -161,9 +162,9 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
         <SelectStatus defaultValue={article.status} />
 
         <div className="flex items-center justify-end">
-          <button className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800" type="submit">
+          <SubmitButton className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800">
             保存
-          </button>
+          </SubmitButton>
         </div>
       </form>
 
