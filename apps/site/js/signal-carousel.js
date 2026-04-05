@@ -155,7 +155,7 @@
       });
     }
 
-    var nextBtn = document.getElementById('carousel-next");
+    var nextBtn = document.getElementById('carousel-next');
     if (nextBtn) {
       nextBtn.addEventListener('click', function (e) {
         e.preventDefault();
