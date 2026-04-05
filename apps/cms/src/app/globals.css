@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Required field highlight (article edit validation) */
+.field-missing {
+  outline: 2px solid #ef4444 !important;
+  outline-offset: 1px;
+  animation: field-missing-pulse 1.5s ease-in-out;
+}
+@keyframes field-missing-pulse {
+  0%, 100% { outline-color: #ef4444; }
+  50% { outline-color: #f97316; }
+}

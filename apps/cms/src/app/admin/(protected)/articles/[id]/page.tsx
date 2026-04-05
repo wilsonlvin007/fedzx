@@ -6,14 +6,13 @@ import { requireAdminUser } from "@/app/admin/(protected)/_lib/require-admin";
 import { ContentStatus } from "@/generated/prisma/enums";
 import { TagSelector } from "@/app/admin/(protected)/_components/TagSelector";
 import { SubmitButton } from "@/app/admin/(protected)/_components/SubmitButton";
-import { PreviewButton } from "@/app/admin/(protected)/_components/PreviewButton";
+import { PreviewButton, PublishGuard } from "@/app/admin/(protected)/_components/PreviewButton";
 import { getTagOptions, syncArticleTags } from "@/lib/tags";
 import { exportPublicSite } from "@/lib/public-export";
 
-export default async function EditArticlePage(props: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
+export default async function EditArticlePage(props: { params: Promise<{ id: string }> }) {
   await requireAdminUser();
   const { id } = await props.params;
-  const { error: errorMessage } = await props.searchParams;
   const tagOptions = await getTagOptions();
 
   const article = await prisma.article.findUnique({ where: { id } });
@@ -71,37 +70,9 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
     redirect(`/admin/articles/${id}`);
   }
 
-  async function publish(formData: FormData) {
+  async function publish() {
     "use server";
     const user = await requireAdminUser();
-    const missing: string[] = [];
-
-    const checks: [string, string][] = [
-      ["title", "标题"],
-      ["slug", "Slug"],
-      ["question", "Question"],
-      ["short_answer", "Short Answer"],
-      ["summary", "Summary"],
-      ["body", "Body"],
-      ["sources", "Sources"],
-    ];
-
-    for (const [name, label] of checks) {
-      if (!formData.get(name) || !String(formData.get(name)).trim()) {
-        missing.push(label);
-      }
-    }
-
-    const tagValues = formData.getAll("tagValues").map((t) => String(t).trim()).filter(Boolean);
-    if (tagValues.length === 0) {
-      missing.push("Tags");
-    }
-
-    if (missing.length > 0) {
-      revalidatePath(`/admin/articles/${id}`);
-      redirect(`/admin/articles/${id}?error=${encodeURIComponent("发布失败：请先填写必填项——" + missing.join("、"))}`);
-    }
-
     await prisma.article.update({
       where: { id },
       data: { status: "PUBLISHED", publishedAt: new Date(), updatedById: user.id },
@@ -156,23 +127,19 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
               </button>
             </form>
           ) : (
-            <form action={publish}>
-              <button className="rounded-lg bg-slate-900 px-3 py-2 text-white hover:bg-slate-800" type="submit">
-                发布
-              </button>
-            </form>
+            <PublishGuard>
+              <form action={publish}>
+                <button className="rounded-lg bg-slate-900 px-3 py-2 text-white hover:bg-slate-800" type="submit">
+                  发布
+                </button>
+              </form>
+            </PublishGuard>
           )}
           <Link className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50" href="/admin/articles">
             返回列表
           </Link>
         </div>
       </div>
-
-      {errorMessage && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-          <div className="text-sm text-red-700">{errorMessage}</div>
-        </div>
-      )}
 
       <form action={save} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
         <Field label="标题" name="title" required defaultValue={article.title} />
