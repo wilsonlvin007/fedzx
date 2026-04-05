@@ -6,12 +6,14 @@ import { requireAdminUser } from "@/app/admin/(protected)/_lib/require-admin";
 import { ContentStatus } from "@/generated/prisma/enums";
 import { TagSelector } from "@/app/admin/(protected)/_components/TagSelector";
 import { SubmitButton } from "@/app/admin/(protected)/_components/SubmitButton";
+import { PreviewButton } from "@/app/admin/(protected)/_components/PreviewButton";
 import { getTagOptions, syncArticleTags } from "@/lib/tags";
 import { exportPublicSite } from "@/lib/public-export";
 
-export default async function EditArticlePage(props: { params: Promise<{ id: string }> }) {
+export default async function EditArticlePage(props: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
   await requireAdminUser();
   const { id } = await props.params;
+  const { error: errorMessage } = await props.searchParams;
   const tagOptions = await getTagOptions();
 
   const article = await prisma.article.findUnique({ where: { id } });
@@ -69,9 +71,37 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
     redirect(`/admin/articles/${id}`);
   }
 
-  async function publish() {
+  async function publish(formData: FormData) {
     "use server";
     const user = await requireAdminUser();
+    const missing: string[] = [];
+
+    const checks: [string, string][] = [
+      ["title", "标题"],
+      ["slug", "Slug"],
+      ["question", "Question"],
+      ["short_answer", "Short Answer"],
+      ["summary", "Summary"],
+      ["body", "Body"],
+      ["sources", "Sources"],
+    ];
+
+    for (const [name, label] of checks) {
+      if (!formData.get(name) || !String(formData.get(name)).trim()) {
+        missing.push(label);
+      }
+    }
+
+    const tagValues = formData.getAll("tagValues").map((t) => String(t).trim()).filter(Boolean);
+    if (tagValues.length === 0) {
+      missing.push("Tags");
+    }
+
+    if (missing.length > 0) {
+      revalidatePath(`/admin/articles/${id}`);
+      redirect(`/admin/articles/${id}?error=${encodeURIComponent("发布失败：请先填写必填项——" + missing.join("、"))}`);
+    }
+
     await prisma.article.update({
       where: { id },
       data: { status: "PUBLISHED", publishedAt: new Date(), updatedById: user.id },
@@ -118,13 +148,7 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <a
-            href={`/admin/articles/${id}/preview`}
-            target="_blank"
-            className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700 hover:bg-blue-100"
-          >
-            预览
-          </a>
+          <PreviewButton articleId={id} />
           {article.status === "PUBLISHED" ? (
             <form action={unpublish}>
               <button className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50" type="submit">
@@ -144,26 +168,34 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
         </div>
       </div>
 
+      {errorMessage && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+          <div className="text-sm text-red-700">{errorMessage}</div>
+        </div>
+      )}
+
       <form action={save} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
         <Field label="标题" name="title" required defaultValue={article.title} />
         <Field label="Slug（用于 URL）" name="slug" required defaultValue={article.slug} />
         <Field label="封面图 URL（可选）" name="coverImage" defaultValue={article.coverImage ?? ""} />
         <Field
-          label="Question（可选）"
+          label="Question（必填）"
           name="question"
+          required
           defaultValue={article.question ?? ""}
           hint="写成用户会搜索的问题。示例：高利率下科技股如何配置？"
         />
         <Textarea
-          label="Short Answer（可选）"
+          label="Short Answer（必填）"
           name="short_answer"
           rows={3}
+          required
           defaultValue={article.shortAnswer ?? ""}
           hint="1~2 句话核心结论，要可以被直接引用。"
         />
-        <Textarea label="Summary（可选）" name="summary" rows={3} defaultValue={article.summary ?? ""} hint="用于首页展示的人类可读摘要。" />
+        <Textarea label="Summary（必填）" name="summary" rows={3} required defaultValue={article.summary ?? ""} hint="用于首页展示的人类可读摘要。" />
         <Textarea label="Body（正文 Markdown）" name="body" rows={14} required defaultValue={article.body} />
-        <Textarea label="Sources（可选）" name="sources" rows={4} defaultValue={article.sources ?? ""} hint="数据或观点来源（换行分隔）。" />
+        <Textarea label="Sources（必填）" name="sources" rows={4} required defaultValue={article.sources ?? ""} hint="数据或观点来源（换行分隔）。" />
 
         <TagSelector initialOptions={tagOptions} defaultSelected={safeTagsToArray(article.tags)} />
         <SelectStatus defaultValue={article.status} />
