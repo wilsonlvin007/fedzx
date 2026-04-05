@@ -102,6 +102,164 @@ export async function exportPublicSite() {
   await fs.writeFile(path.join(PUBLIC_ROOT, "articles", "index.html"), renderArticlesIndex(articles), "utf8");
   await fs.writeFile(path.join(PUBLIC_ROOT, "questions", "index.html"), renderQuestionsIndex(articles), "utf8");
   await fs.writeFile(path.join(PUBLIC_ROOT, "sitemap.xml"), renderSitemap(articles), "utf8");
+
+  // Update homepage: replace article cards and question cards with latest published articles.
+  await updateHomepageCards(articles);
+}
+
+/**
+ * Update the homepage index.html to reflect the latest published articles.
+ *
+ * Strategy: parse the existing index.html and replace the content inside
+ * <div class="articles-grid"> and the question cards section with fresh data.
+ * This preserves the rest of the homepage (hero, categories, footer, etc.)
+ * while keeping article listings accurate.
+ */
+async function updateHomepageCards(articles: PublicArticle[]) {
+  const indexPath = path.join(PUBLIC_ROOT, "index.html");
+  const raw = await fs.readFile(indexPath, "utf8").catch(() => null);
+  if (!raw) return; // No homepage to update
+
+  const publishedSlugs = new Set<string>(articles.map((a) => a.slug));
+  let html = raw;
+
+  // --- Remove dead article cards: any <a> card pointing to a non-existent slug ---
+  // Remove article-card links inside .articles-grid
+  html = html.replace(
+    /<a\s+class="article-card(?:-featured)?"[^>]*href="\/articles\/([^\/]+)\/?"[^>]*>[\s\S]*?<\/a>/gi,
+    (match, slug) => {
+      if (publishedSlugs.has(slug)) return match; // keep alive articles
+      return ""; // remove dead articles
+    }
+  );
+
+  // Remove question cards pointing to non-existent slugs
+  html = html.replace(
+    /<a\s+class="question-card"[^>]*href="\/articles\/([^\/]+)\/?"[^>]*>[\s\S]*?<\/a>/gi,
+    (match, slug) => {
+      if (publishedSlugs.has(slug)) return match;
+      return "";
+    }
+  );
+
+  // --- Insert new articles if the grid has fewer than before ---
+  // Find the articles grid container
+  const gridMatch = html.match(/<div class="articles-grid">([\s\S]*?)<\/div>\s*<\/div>\s*<\/section>/);
+  if (gridMatch) {
+    const gridContent = gridMatch[1];
+    const existingCards = gridContent.match(/<a\s+class="article-card/g) || [];
+    const featuredCards = gridContent.match(/<a\s+class="article-card-featured/g) || [];
+    const totalCards = existingCards.length + featuredCards.length;
+
+    // Find articles already in the grid (by slug) to avoid duplicates
+    const usedSlugs = new Set<string>();
+    const slugRegex = /href="\/articles\/([^\/]+)\/?"/g;
+    let m;
+    while ((m = slugRegex.exec(gridContent)) !== null) {
+      usedSlugs.add(m[1]);
+    }
+
+    // Add new cards for articles not yet in the grid
+    const newCards: string[] = [];
+    for (const article of articles) {
+      if (usedSlugs.has(article.slug)) continue;
+      if (newCards.length >= 3) break; // Add up to 3 new cards
+      const tags = parseTags(article.tags);
+      const tag1 = tags[0] || "政策分析";
+      const tag2 = tags[1] || "";
+      const shortAnswer = article.shortAnswer || article.summary || "";
+      const thumbClass = thumbClassForTag(tag1);
+      const tagClass1 = tagClassForTag(tag1);
+      const tagClass2 = tag2 ? tagClassForTag(tag2) : "";
+      const dateStr = formatDate(article.publishedAt);
+
+      newCards.push(`
+      <a class="article-card" href="${articlePath(article.slug)}">
+        <div class="article-thumb ${thumbClass}"></div>
+        <div class="article-body">
+          <div class="article-meta">
+            <span class="tag ${tagClass1}">${escapeHtml(tag1)}</span>
+            ${tag2 ? `<span class="tag ${tagClass2}">${escapeHtml(tag2)}</span>` : ""}
+          </div>
+          <h2>${escapeHtml(article.title)}</h2>
+          ${shortAnswer ? `<div class="answer-box">
+            <div class="answer-box-label">核心结论</div>
+            <p>${escapeHtml(shortAnswer.slice(0, 120))}</p>
+          </div>` : ""}
+          <div class="article-footer">
+            ${dateStr ? `<span class="article-date">${escapeHtml(dateStr)}</span>` : ""}
+          </div>
+        </div>
+      </a>`);
+    }
+
+    if (newCards.length > 0) {
+      const newGridContent = gridContent.trimEnd() + "\n" + newCards.join("\n") + "\n    ";
+      html = html.replace(
+        /<div class="articles-grid">([\s\S]*?)<\/div>\s*<\/div>\s*<\/section>/,
+        `<div class="articles-grid">${newGridContent}</div>\n      </div>\n    </section>`
+      );
+    }
+  }
+
+  // --- Insert new question cards if section has gaps ---
+  const questionSectionMatch = html.match(/<!--[^>]*热门问题[^>]*-->\s*<div[^>]*>([\s\S]*?)<\/div>\s*<\/section>/);
+  if (questionSectionMatch) {
+    const qContent = questionSectionMatch[1];
+    const usedQSlugs = new Set<string>();
+    let qm;
+    const qSlugRegex = /href="\/articles\/([^\/]+)\/?"/g;
+    while ((qm = qSlugRegex.exec(qContent)) !== null) {
+      usedQSlugs.add(qm[1]);
+    }
+
+    const articlesWithQuestion = articles.filter(
+      (a) => a.question && a.question.trim() && !usedQSlugs.has(a.slug)
+    );
+    const newQCards: string[] = [];
+    for (const article of articlesWithQuestion) {
+      if (newQCards.length >= 3) break;
+      const tags = parseTags(article.tags);
+      const tag1 = tags[0] || "";
+      const tagClass1 = tagClassForTag(tag1);
+      newQCards.push(`
+      <a class="question-card" href="${articlePath(article.slug)}">
+        <div class="q-meta">
+          <span class="q-icon">Q</span>
+          ${tag1 ? `<span class="tag ${tagClass1}">${escapeHtml(tag1)}</span>` : ""}
+        </div>
+        <h3>${escapeHtml(article.question || article.title)}</h3>
+      </a>`);
+    }
+
+    if (newQCards.length > 0) {
+      const newQContent = qContent.trimEnd() + "\n" + newQCards.join("\n") + "\n      ";
+      html = html.replace(
+        /<!--[^>]*热门问题[^>]*-->\s*<div[^>]*>([\s\S]*?)<\/div>\s*<\/section>/,
+        (match) => match.replace(qContent, newQContent)
+      );
+    }
+  }
+
+  // Clean up excessive blank lines (artifacts from removals)
+  html = html.replace(/\n{4,}/g, "\n\n");
+
+  await fs.writeFile(indexPath, html, "utf8");
+}
+
+function thumbClassForTag(tag: string): string {
+  if (/政策|利率|美联储|央行/.test(tag)) return "policy";
+  if (/资产配置|投资|A股|股票/.test(tag)) return "invest";
+  if (/数据|指标|通胀|就业/.test(tag)) return "data";
+  return "policy";
+}
+
+function tagClassForTag(tag: string): string {
+  if (/政策|利率|美联储|央行/.test(tag)) return "tag-macro";
+  if (/资产配置|投资|A股|股票/.test(tag)) return "tag-invest";
+  if (/数据|指标|通胀|就业/.test(tag)) return "tag-data";
+  if (/市场|解读/.test(tag)) return "tag-policy";
+  return "tag-macro";
 }
 
 async function cleanupOldArticleDirs(validSlugs: Set<string>) {
