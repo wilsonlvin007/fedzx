@@ -67,6 +67,11 @@ type PublicArticle = {
   updatedAt: Date;
 };
 
+type ArticleViewCount = {
+  articleId: string;
+  totalViews: number;
+};
+
 export async function exportPublicSite() {
   const articles = await prisma.article.findMany({
     where: { status: "PUBLISHED" },
@@ -133,15 +138,6 @@ async function updateHomepageCards(articles: PublicArticle[]) {
     }
   );
 
-  // Remove question cards pointing to non-existent slugs
-  html = html.replace(
-    /<a\s+class="question-card"[^>]*href="\/articles\/([^\/]+)\/?"[^>]*>[\s\S]*?<\/a>/gi,
-    (match, slug) => {
-      if (publishedSlugs.has(slug)) return match;
-      return "";
-    }
-  );
-
   // --- Insert new articles if the grid has fewer than before ---
   // Find the articles grid container
   const gridMatch = html.match(/<div class="articles-grid">([\s\S]*?)<\/div>\s*<\/div>\s*<\/section>/);
@@ -202,43 +198,70 @@ async function updateHomepageCards(articles: PublicArticle[]) {
     }
   }
 
-  // --- Insert new question cards if section has gaps ---
-  const questionSectionMatch = html.match(/<!--[^>]*热门问题[^>]*-->\s*<div[^>]*>([\s\S]*?)<\/div>\s*<\/section>/);
-  if (questionSectionMatch) {
-    const qContent = questionSectionMatch[1];
-    const usedQSlugs = new Set<string>();
-    let qm;
-    const qSlugRegex = /href="\/articles\/([^\/]+)\/?"/g;
-    while ((qm = qSlugRegex.exec(qContent)) !== null) {
-      usedQSlugs.add(qm[1]);
+  // --- Rewrite the hot questions section entirely based on view counts ---
+  // Match the entire "热门问题" section from comment to closing </section>
+  const questionsSectionRegex = /<!--[^>]*热门问题[^>]*-->[\s\S]*?<\/section>/;
+  const questionsMatch = html.match(questionsSectionRegex);
+  if (questionsMatch) {
+    // Fetch view counts from article_metrics
+    const viewRows = await prisma.$queryRaw<ArticleViewCount[]>`
+      SELECT article_id as "articleId", SUM(views) as "totalViews"
+      FROM article_metrics
+      GROUP BY article_id
+    `;
+    const viewMap = new Map<string, number>();
+    for (const row of viewRows) {
+      viewMap.set(row.articleId, row.totalViews);
     }
 
-    const articlesWithQuestion = articles.filter(
-      (a) => a.question && a.question.trim() && !usedQSlugs.has(a.slug)
-    );
-    const newQCards: string[] = [];
-    for (const article of articlesWithQuestion) {
-      if (newQCards.length >= 3) break;
-      const tags = parseTags(article.tags);
-      const tag1 = tags[0] || "";
-      const tagClass1 = tagClassForTag(tag1);
-      newQCards.push(`
+    // All published articles with their view counts
+    const articlesWithViews = articles.map((a) => ({
+      ...a,
+      views: viewMap.get(a.id) ?? 0,
+    }));
+
+    // Sort: with views desc, without views (random among themselves)
+    const withViews = articlesWithViews.filter((a) => a.views > 0).sort((a, b) => b.views - a.views);
+    const withoutViews = articlesWithViews.filter((a) => a.views === 0).sort(() => Math.random() - 0.5);
+
+    // Top 6 for homepage
+    const topArticles = [...withViews, ...withoutViews].slice(0, 6);
+
+    const qCards = topArticles
+      .map((article, idx) => {
+        const tags = parseTags(article.tags);
+        const tag1 = tags[0] || "";
+        const tagClass1 = tagClassForTag(tag1);
+        const isHot = idx === 0 && article.views > 0;
+        const questionText = article.question || article.title;
+        return `\
       <a class="question-card" href="${articlePath(article.slug)}">
         <div class="q-meta">
           <span class="q-icon">Q</span>
           ${tag1 ? `<span class="tag ${tagClass1}">${escapeHtml(tag1)}</span>` : ""}
+          ${isHot ? `<span class="q-trend">🔥 热榜</span>` : ""}
         </div>
-        <h3>${escapeHtml(article.question || article.title)}</h3>
-      </a>`);
-    }
+        <h3>${escapeHtml(questionText)}</h3>
+      </a>`;
+      })
+      .join("\n");
 
-    if (newQCards.length > 0) {
-      const newQContent = qContent.trimEnd() + "\n" + newQCards.join("\n") + "\n      ";
-      html = html.replace(
-        /<!--[^>]*热门问题[^>]*-->\s*<div[^>]*>([\s\S]*?)<\/div>\s*<\/section>/,
-        (match) => match.replace(qContent, newQContent)
-      );
-    }
+    const newQuestionsSection = `<!-- ④ 热门问题 -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">热门问题</h2>
+      <a href="/questions/" class="section-more">查看全部 →</a>
+    </div>
+    <div class="questions-grid">
+
+${qCards}
+
+    </div>
+  </div>
+</section>`;
+
+    html = html.replace(questionsSectionRegex, newQuestionsSection);
   }
 
   // Clean up excessive blank lines (artifacts from removals)
@@ -355,6 +378,9 @@ ${siteHeader("articles")}
   </div>
 </main>
 ${siteFooter()}
+<script>
+(function(){try{fetch('https://cms.fedzx.com/api/internal/track-view',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:'${article.slug}'})}).catch(function(){})}catch(e){}})();
+</script>
 </body>
 </html>`;
 }
