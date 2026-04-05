@@ -1,10 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
-
-type Props = {
-  articleId: string;
-};
+import React, { useCallback, isValidElement } from "react";
 
 const REQUIRED_FIELDS: [string, string][] = [
   ["title", "标题"],
@@ -16,31 +12,32 @@ const REQUIRED_FIELDS: [string, string][] = [
   ["sources", "Sources"],
 ];
 
-/**
- * Validates all required fields, scrolls to the first empty one and highlights it.
- * Returns true if all fields are filled.
- */
-function validateAndScroll(form: HTMLFormElement): boolean {
+function clearHighlights() {
+  document.querySelectorAll(".field-missing").forEach((el) => {
+    el.classList.remove("field-missing");
+  });
+}
+
+function validateAndScroll(): boolean {
   clearHighlights();
 
-  const missing: string[] = [];
+  const form = document.getElementById("article-form");
+  if (!form) return true;
+
   let firstEmptyEl: HTMLElement | null = null;
 
-  for (const [name, _label] of REQUIRED_FIELDS) {
+  for (const [name] of REQUIRED_FIELDS) {
     const el = form.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`);
     if (!el || !el.value.trim()) {
-      missing.push(name);
       if (!firstEmptyEl) firstEmptyEl = el;
       if (el) el.classList.add("field-missing");
     }
   }
 
-  // Check tags: at least 2
+  // Tags: at least 2
   const tagInputs = form.querySelectorAll<HTMLInputElement>('input[name="tagValues"]');
   if (tagInputs.length < 2) {
-    const tagsContainer = form.querySelector<HTMLInputElement>(
-      'input[name="tagValues"]'
-    )?.closest("div.block") as HTMLElement | null;
+    const tagsContainer = form.querySelector("[data-tags-section]") as HTMLElement | null;
     if (!firstEmptyEl) firstEmptyEl = tagsContainer;
     if (tagsContainer) tagsContainer.classList.add("field-missing");
   }
@@ -48,25 +45,17 @@ function validateAndScroll(form: HTMLFormElement): boolean {
   if (firstEmptyEl) {
     firstEmptyEl.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(() => {
-      if (firstEmptyEl instanceof HTMLElement) {
-        firstEmptyEl.focus?.();
-      }
+      if (firstEmptyEl instanceof HTMLElement) firstEmptyEl.focus?.();
     }, 400);
+    return false;
   }
 
-  return missing.length === 0;
+  return true;
 }
 
-function clearHighlights() {
-  document.querySelectorAll(".field-missing").forEach((el) => {
-    el.classList.remove("field-missing");
-  });
-}
-
-export function PreviewButton({ articleId }: Props) {
+export function PreviewButton({ articleId }: { articleId: string }) {
   const handleClick = useCallback(() => {
-    const form = document.querySelector<HTMLFormElement>("form[action]");
-    if (!form || validateAndScroll(form)) {
+    if (validateAndScroll()) {
       window.open(`/admin/articles/${articleId}/preview`, "_blank");
     }
   }, [articleId]);
@@ -83,29 +72,22 @@ export function PreviewButton({ articleId }: Props) {
 }
 
 /**
- * Wraps a form to validate required fields before the server action runs.
- * Scrolls to and highlights the first empty field.
+ * Injects onSubmit validation into a <form> child element.
+ * Does NOT render its own <form> (avoids nested-form bug).
  */
-export function PublishGuard({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const handleSubmit = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      const form = e.currentTarget;
-      if (!validateAndScroll(form)) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      // If valid, let the form submit normally (server action)
-    },
-    []
-  );
+export function PublishGuard({ children }: { children: React.ReactNode }) {
+  const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+    if (!validateAndScroll()) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, []);
 
-  return (
-    <form onSubmit={handleSubmit}>
-      {children}
-    </form>
-  );
+  if (isValidElement(children)) {
+    return React.cloneElement(
+      children as React.ReactElement<{ onSubmit: React.FormEventHandler<HTMLFormElement> }>,
+      { onSubmit: handleSubmit },
+    );
+  }
+  return children;
 }

@@ -125,59 +125,37 @@ async function updateHomepageCards(articles: PublicArticle[]) {
   const raw = await fs.readFile(indexPath, "utf8").catch(() => null);
   if (!raw) return; // No homepage to update
 
-  const publishedSlugs = new Set<string>(articles.map((a) => a.slug));
   let html = raw;
 
-  // --- Remove dead article cards: any <a> card pointing to a non-existent slug ---
-  // Remove article-card links inside .articles-grid
-  html = html.replace(
-    /<a\s+class="article-card(?:-featured)?"[^>]*href="\/articles\/([^\/]+)\/?"[^>]*>[\s\S]*?<\/a>/gi,
-    (match, slug) => {
-      if (publishedSlugs.has(slug)) return match; // keep alive articles
-      return ""; // remove dead articles
-    }
-  );
+  // --- Rewrite the latest articles section entirely, sorted by publishedAt ---
+  const articlesSectionRegex = /<!--[^>]*最新文章[^>]*-->[\s\S]*?<\/section>/;
+  const articlesMatch = html.match(articlesSectionRegex);
+  if (articlesMatch) {
+    // articles are already sorted by publishedAt desc
+    const topArticles = articles.slice(0, 5);
+    // First article gets featured card, rest get normal cards
+    const featured = topArticles[0];
+    const rest = topArticles.slice(1);
 
-  // --- Insert new articles if the grid has fewer than before ---
-  // Find the articles grid container
-  const gridMatch = html.match(/<div class="articles-grid">([\s\S]*?)<\/div>\s*<\/div>\s*<\/section>/);
-  if (gridMatch) {
-    const gridContent = gridMatch[1];
-    const existingCards = gridContent.match(/<a\s+class="article-card/g) || [];
-    const featuredCards = gridContent.match(/<a\s+class="article-card-featured/g) || [];
-    const totalCards = existingCards.length + featuredCards.length;
-
-    // Find articles already in the grid (by slug) to avoid duplicates
-    const usedSlugs = new Set<string>();
-    const slugRegex = /href="\/articles\/([^\/]+)\/?"/g;
-    let m;
-    while ((m = slugRegex.exec(gridContent)) !== null) {
-      usedSlugs.add(m[1]);
-    }
-
-    // Add new cards for articles not yet in the grid
-    const newCards: string[] = [];
-    for (const article of articles) {
-      if (usedSlugs.has(article.slug)) continue;
-      if (newCards.length >= 3) break; // Add up to 3 new cards
-      const tags = parseTags(article.tags);
+    function buildCard(a: PublicArticle): string {
+      const tags = parseTags(a.tags);
       const tag1 = tags[0] || "政策分析";
       const tag2 = tags[1] || "";
-      const shortAnswer = article.shortAnswer || article.summary || "";
+      const shortAnswer = a.shortAnswer || a.summary || "";
       const thumbClass = thumbClassForTag(tag1);
       const tagClass1 = tagClassForTag(tag1);
       const tagClass2 = tag2 ? tagClassForTag(tag2) : "";
-      const dateStr = formatDate(article.publishedAt);
+      const dateStr = formatDate(a.publishedAt);
 
-      newCards.push(`
-      <a class="article-card" href="${articlePath(article.slug)}">
+      return `\
+      <a class="article-card" href="${articlePath(a.slug)}">
         <div class="article-thumb ${thumbClass}"></div>
         <div class="article-body">
           <div class="article-meta">
             <span class="tag ${tagClass1}">${escapeHtml(tag1)}</span>
             ${tag2 ? `<span class="tag ${tagClass2}">${escapeHtml(tag2)}</span>` : ""}
           </div>
-          <h2>${escapeHtml(article.title)}</h2>
+          <h2>${escapeHtml(a.title)}</h2>
           ${shortAnswer ? `<div class="answer-box">
             <div class="answer-box-label">核心结论</div>
             <p>${escapeHtml(shortAnswer.slice(0, 120))}</p>
@@ -186,16 +164,59 @@ async function updateHomepageCards(articles: PublicArticle[]) {
             ${dateStr ? `<span class="article-date">${escapeHtml(dateStr)}</span>` : ""}
           </div>
         </div>
-      </a>`);
+      </a>`;
     }
 
-    if (newCards.length > 0) {
-      const newGridContent = gridContent.trimEnd() + "\n" + newCards.join("\n") + "\n    ";
-      html = html.replace(
-        /<div class="articles-grid">([\s\S]*?)<\/div>\s*<\/div>\s*<\/section>/,
-        `<div class="articles-grid">${newGridContent}</div>\n      </div>\n    </section>`
-      );
+    function buildFeaturedCard(a: PublicArticle): string {
+      const tags = parseTags(a.tags);
+      const tag1 = tags[0] || "政策分析";
+      const tag2 = tags[1] || "";
+      const shortAnswer = a.shortAnswer || a.summary || "";
+      const tagClass1 = tagClassForTag(tag1);
+      const tagClass2 = tag2 ? tagClassForTag(tag2) : "";
+      const dateStr = formatDate(a.publishedAt);
+
+      return `\
+      <a class="article-card-featured" href="${articlePath(a.slug)}" style="text-decoration:none;">
+        <div class="featured-accent"></div>
+        <div class="featured-body">
+          <div class="featured-tag">
+            <span class="featured-badge">精选</span>
+            ${tag1 ? `<span class="tag ${tagClass1}">${escapeHtml(tag1)}</span>` : ""}
+            ${tag2 ? `<span class="tag ${tagClass2}">${escapeHtml(tag2)}</span>` : ""}
+          </div>
+          <h2>${escapeHtml(a.title)}</h2>
+          ${shortAnswer ? `<div class="featured-answer">
+            <div class="answer-box-label">核心结论</div>
+            <p>${escapeHtml(shortAnswer.slice(0, 150))}</p>
+          </div>` : ""}
+          <div class="featured-footer">
+            ${dateStr ? `<span class="article-date">${escapeHtml(dateStr)}</span>` : ""}
+          </div>
+        </div>
+      </a>`;
     }
+
+    const cardsHtml = featured
+      ? buildFeaturedCard(featured) + "\n" + rest.map(buildCard).join("\n")
+      : rest.map(buildCard).join("\n");
+
+    const newArticlesSection = `<!-- ⑤ 最新文章 — 网格布局 -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">最新文章</h2>
+      <a href="/articles/" class="section-more">查看全部 →</a>
+    </div>
+    <div class="articles-grid">
+
+${cardsHtml}
+
+    </div>
+  </div>
+</section>`;
+
+    html = html.replace(articlesSectionRegex, newArticlesSection);
   }
 
   // --- Rewrite the hot questions section entirely based on view counts ---

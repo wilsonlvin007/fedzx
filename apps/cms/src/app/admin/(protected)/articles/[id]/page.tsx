@@ -141,7 +141,7 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
         </div>
       </div>
 
-      <form action={save} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+      <form id="article-form" action={save} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
         <Field label="标题" name="title" required defaultValue={article.title} />
         <Field label="Slug（用于 URL）" name="slug" required defaultValue={article.slug} />
         <Field label="封面图 URL（可选）" name="coverImage" defaultValue={article.coverImage ?? ""} />

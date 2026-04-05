@@ -45,7 +45,7 @@ export function TagSelector({ initialOptions, defaultSelected = [] }: Props) {
   }
 
   return (
-    <div className="block">
+    <div className="block" data-tags-section>
       <div className="text-sm font-medium text-slate-700">Tags（必填，多选）</div>
       <div className="mt-1 text-xs text-slate-500">输入自定义标签后点击“添加”，会自动进入常用标签池并默认勾选。</div>
 
