@@ -118,6 +118,13 @@ export default async function EditArticlePage(props: { params: Promise<{ id: str
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <a
+            href={`/admin/articles/${id}/preview`}
+            target="_blank"
+            className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700 hover:bg-blue-100"
+          >
+            预览
+          </a>
           {article.status === "PUBLISHED" ? (
             <form action={unpublish}>
               <button className="rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50" type="submit">
